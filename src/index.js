@@ -1,24 +1,69 @@
-import { Ion, Viewer, createWorldTerrain, createOsmBuildings, Cartesian3, Math } from "cesium";
+import {
+    Ion,
+    Viewer,
+    createWorldTerrain,
+    createOsmBuildings,
+    Cartesian3,
+    Math,
+    GoogleMaps,
+    Transforms,
+    Model
+} from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../src/css/main.css"
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
-// Your access token can be found at: https://cesium.com/ion/tokens.
-// This is the default access token
-Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzciLCJpZCI6NTc3MzMsImlhdCI6MTYyNzg0NTE4Mn0.XcKpgANiY19MC4bdFUXMVEBToBmqS8kuYpUlxJHYZxk';
+const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MmNhZjFkMi1hZjljLTQ5ZTEtOGIxZi1iMTc2MGI0YTcwYzgiLCJpZCI6MTM5ODcxLCJpYXQiOjE2ODQ0ODE5NTB9.mnZxaWR_9ighSvgIKlUs63rrCmPChtDo80vf7xuUuYg';
+Ion.defaultAccessToken = key;
+const apiKey = 'AIzaSyDey2NY3Aq7IEjgeE4bjh0WDQRPZA3OcGA';
+GoogleMaps.defaultApiKey = apiKey;
 
-// Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-const viewer = new Viewer('cesiumContainer', {
-  terrainProvider: createWorldTerrain()
+// adding model not working :C
+const loader = new GLTFLoader();
+console.log(GLTFLoader);
+loader.load('http://localhost:3000/dragon/source/Dragon.glb', (gltf) => {
+    viewer.scene.add(gltf.scene);
 });
+
+
+// create view
+const viewer = new Viewer('cesiumContainer', {
+   imageryProvider: false,
+  // baseLayerPicker: false,
+  terrainProvider: createWorldTerrain({
+    requestWaterMask: true, // water effects
+    requestVertexNormals: true,
+    infoBox: false,
+    selectionIndicator: false,
+    shadows: true,
+    shouldAnimate: true,
+  })
+});
+
+// photorealistic buildings and terrain - not sure if looks nice
+// const tileset = viewer.scene.primitives.add(new Cesium3DTileset({
+//    url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=" + apiKey,
+//    showCreditsOnScreen: false,
+// }));
 
 // Add Cesium OSM Buildings, a global 3D buildings layer.
-viewer.scene.primitives.add(createOsmBuildings());   
+viewer.scene.primitives.add(createOsmBuildings());
 
-// Fly the camera to San Francisco at the given longitude, latitude, and height.
-viewer.camera.flyTo({
-  destination : Cartesian3.fromDegrees(-122.4175, 37.655, 400),
-  orientation : {
-    heading : Math.toRadians(0.0),
-    pitch : Math.toRadians(-15.0),
-  }
+// set the initial camera
+viewer.scene.camera.setView({
+  destination: Cartesian3.fromDegrees(-74.019, 40.6912, 1000),
+  orientation: {
+    heading: Math.toRadians(10),
+    pitch: Math.toRadians(-20),
+  },
 });
+
+const modelMatrix = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(-74.019, 40.6912, 1000));
+
+ // const model = viewer.scene.primitives.add(Model.fromGltf({
+ //     url: "./dragon/source/Dragon.glb",
+ //     modelMatrix: modelMatrix
+ // }));
+
+
+
