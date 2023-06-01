@@ -4,6 +4,13 @@ A minimal recommended setup for an applications using [Cesium](https://cesium.co
 
 [![Build Status](https://travis-ci.org/CesiumGS/cesium-webpack-example.svg?branch=using-custom-loader)](https://travis-ci.org/CesiumGS/cesium-webpack-example)
 
+## Running the server
+
+````sh
+cd server
+node server.js
+````
+
 ## Running this application
 
 ````sh

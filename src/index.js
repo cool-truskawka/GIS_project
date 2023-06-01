@@ -86,37 +86,40 @@ let position = entity.position;
 
 console.log(position)
 
+let speed = 1.0;
+
 document.addEventListener('keydown', function (event) {
     const step = 5;
-    const translation = new Cartesian3();
+    const movement = new Cartesian3();
 
     switch(event.keyCode) {
         case 37: // left arrow
-            translation.x = +step;
+            movement.x -= step;
             break;
         case 38: // up arrow
-            console.log("UP");
-            translation.y = +step;
+            movement.y -= step;
             break;
         case 39: // right arrow
-            translation.z = step;
+            movement.x += step;
             break;
         case 40: // down arrow
-            translation.y = -step;
+            movement.y += step;
+            break;
+        case 32: // space bar
+            movement.z += step;
+            break;
+        case 17: // ctrl
+            movement.z -= step;
             break;
     }
 
-    // Apply translation to the model's position
-    //position.setValue(Cartesian3.add(position.getValue(), translation, new Cartesian3()));
-    const currentTime = viewer.clock.currentTime; // Get the current time
-    const currentPosition = position.getValue(currentTime, new Cartesian3());
-    const newPosition = Cartesian3.add(currentPosition, translation, new Cartesian3());
-    //position.setValue(currentTime, newPosition);
-    position._value = newPosition;
+     const currentTime = viewer.clock.currentTime; // Get the current time
+     const currentPosition = position.getValue(currentTime, new Cartesian3());
+     const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
+     position._value = newPosition;
 
-
-    entity.position = position;
-    console.log(position)
+     entity.position = position;
+     console.log(position)
 });
 
 
