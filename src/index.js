@@ -45,11 +45,12 @@ const viewer = new Viewer('cesiumContainer', {
 viewer.scene.primitives.add(createOsmBuildings());
 
 // set the initial camera
+//this does nothing lol
 viewer.scene.camera.setView({
     destination: Cartesian3.fromDegrees(-74.019, 40.6912, 1000),
     orientation: {
-        heading: Math.toRadians(10),
-        pitch: Math.toRadians(-20),
+        heading: 0,
+        pitch: 0,
     },
 });
 
@@ -63,7 +64,7 @@ function createModel(url) {
         1000
     );
 
-    const heading = Math.toRadians(0);
+    const heading = 0;
     const pitch = 0;
     const roll = 0;
     const hpr = new HeadingPitchRoll(heading, pitch, roll);
@@ -87,15 +88,33 @@ function createModel(url) {
 let entity = createModel("http://localhost:3000/images/Cesium_Air.glb");
 let position = entity.position;
 
-console.log(position)
+
 
 let speed = 0.1; // Initial speed value
-let rotationSpeed = 0.02; // Rotation speed value
+let rotationSpeed = 0.2; // Rotation speed value
+let headingOffset = 0;
+let pitchOffset = 0;
+let rollOffset = 0;
 
 viewer.clock.onTick.addEventListener(function (clock) {
-    const acceleration = 0.01; // Speed increment value
-
-    const orientation = entity.orientation.getValue(clock.currentTime, new HeadingPitchRoll());
+    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
+    const orientation = entity.orientation.getValue(viewer.clock.currentTime, new HeadingPitchRoll());
+    console.log(rollOffset);
+    /*if(rollOffset > 0){
+        console.log("here");
+        rollOffset =0;
+        console.log(rollOffset);
+    }
+    if(rollOffset < 0){
+        console.log("here2");
+        rollOffset += rotationSpeed
+        console.log(rollOffset);
+    }*/
+    var hpr = new HeadingPitchRoll(headingOffset, pitchOffset, rollOffset);
+    entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
+    orientation.roll = rollOffset;
+    orientation.heading = headingOffset;
+    orientation.pitch = pitchOffset;
     const forwardVector = new Cartesian3();
     const quaternion = Transforms.headingPitchRollQuaternion(position.getValue(clock.currentTime, new Cartesian3()), orientation);
     Matrix3.multiplyByVector(Matrix3.fromQuaternion(quaternion), Cartesian3.UNIT_X, forwardVector);
@@ -103,32 +122,10 @@ viewer.clock.onTick.addEventListener(function (clock) {
 
     const movement = Cartesian3.multiplyByScalar(forwardVector, speed, new Cartesian3());
 
-    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
     const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
     position._value = newPosition;
 
     entity.position = position;
-    console.log(position);
-});
-
-
-viewer.clock.onTick.addEventListener(function (clock) {
-    const acceleration = 0.01; // Speed increment value
-
-    const orientation = entity.orientation.getValue(clock.currentTime, new HeadingPitchRoll());
-    const forwardVector = new Cartesian3();
-    const quaternion = Transforms.headingPitchRollQuaternion(position.getValue(clock.currentTime, new Cartesian3()), orientation);
-    Matrix3.multiplyByVector(Matrix3.fromQuaternion(quaternion), Cartesian3.UNIT_X, forwardVector);
-    Cartesian3.normalize(forwardVector, forwardVector);
-
-    const movement = Cartesian3.multiplyByScalar(forwardVector, speed, new Cartesian3());
-
-    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
-    const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
-    position._value = newPosition;
-
-    entity.position = position;
-    console.log(position);
 });
 
 document.addEventListener('keydown', function (event) {
@@ -136,42 +133,48 @@ document.addEventListener('keydown', function (event) {
 
     switch (event.keyCode) {
         case 38: // up arrow
-            speed += acceleration;
+            var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
+            var heading = headingOffset;
+            var pitch = pitchOffset;
+            var roll = rollOffset;
+            pitch -= Math.toRadians(rotationSpeed);
+            pitchOffset = pitch;
+            var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
         case 40: // down arrow
-            speed -= acceleration;
-            // Limit the speed to a minimum of 0.01
-            speed = (speed > 0.01) ? speed : 0.01;
-            break;
+            var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
+            var heading = headingOffset;
+            var pitch = pitchOffset;
+            var roll = rollOffset;
+            pitch += Math.toRadians(rotationSpeed);
+            pitchOffset = pitch;
+            var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
+            break;  
         case 37: // left arrow
-            const rotationMatrix = Matrix3.fromRotationZ(rotationSpeed);
-            const rotationQuaternion = Quaternion.fromRotationMatrix(rotationMatrix);
-            const modelMatrix = entity.model.modelMatrix;
-            const newModelMatrix = Matrix4.multiply(
-                Matrix4.fromRotationTranslation(
-                    rotationQuaternion,
-                    Cartesian3.ZERO,
-                    new Matrix4()
-                ),
-                modelMatrix,
-                new Matrix4()
-            );
-            entity.model.modelMatrix = newModelMatrix;
+            var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
+            var heading = headingOffset;
+            var pitch = pitchOffset;
+            var roll = rollOffset;
+            heading -= Math.toRadians(rotationSpeed);
+            headingOffset = heading;
+            //rollOffset -= Math.toRadians(rotationSpeed); need to be fixed
+            roll = rollOffset;
+            var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
         case 39: // right arrow
-            const negativeRotationMatrix = Matrix3.fromRotationZ(-rotationSpeed);
-            const negativeRotationQuaternion = Quaternion.fromRotationMatrix(negativeRotationMatrix);
-            const modelMatrix2 = entity.model.modelMatrix;
-            const newModelMatrix2 = Matrix4.multiply(
-                Matrix4.fromRotationTranslation(
-                    negativeRotationQuaternion,
-                    Cartesian3.ZERO,
-                    new Matrix4()
-                ),
-                modelMatrix2,
-                new Matrix4()
-            );
-            entity.model.modelMatrix = newModelMatrix2;
-            break;
+            var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
+            var heading = headingOffset;
+            var pitch = pitchOffset;
+            var roll = rollOffset;
+            heading += Math.toRadians(rotationSpeed);
+            headingOffset = heading;
+            //rollOffset += Math.toRadians(rotationSpeed); need to be fixed
+            roll = rollOffset;
+            var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
+            break;   
     }
 });
