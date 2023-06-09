@@ -7,8 +7,11 @@ import {
     Math,
     GoogleMaps,
     Transforms,
+    Matrix3,
     Matrix4,
-    Model, HeadingPitchRoll
+    Model, 
+    HeadingPitchRoll,
+    Quaternion 
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../src/css/main.css"
@@ -60,7 +63,7 @@ function createModel(url) {
         1000
     );
 
-    const heading = Math.toRadians(-90);
+    const heading = Math.toRadians(0);
     const pitch = 0;
     const roll = 0;
     const hpr = new HeadingPitchRoll(heading, pitch, roll);
@@ -86,86 +89,89 @@ let position = entity.position;
 
 console.log(position)
 
-let speed = 1.0;
+let speed = 0.1; // Initial speed value
+let rotationSpeed = 0.02; // Rotation speed value
 
-document.addEventListener('keydown', function (event) {
-    const step = 5;
-    const movement = new Cartesian3();
+viewer.clock.onTick.addEventListener(function (clock) {
+    const acceleration = 0.01; // Speed increment value
 
-    switch(event.keyCode) {
-        case 37: // left arrow
-            movement.x -= step;
-            break;
-        case 38: // up arrow
-            movement.y -= step;
-            break;
-        case 39: // right arrow
-            movement.x += step;
-            break;
-        case 40: // down arrow
-            movement.y += step;
-            break;
-        case 32: // space bar
-            movement.z += step;
-            break;
-        case 17: // ctrl
-            movement.z -= step;
-            break;
-    }
+    const orientation = entity.orientation.getValue(clock.currentTime, new HeadingPitchRoll());
+    const forwardVector = new Cartesian3();
+    const quaternion = Transforms.headingPitchRollQuaternion(position.getValue(clock.currentTime, new Cartesian3()), orientation);
+    Matrix3.multiplyByVector(Matrix3.fromQuaternion(quaternion), Cartesian3.UNIT_X, forwardVector);
+    Cartesian3.normalize(forwardVector, forwardVector);
 
-     const currentTime = viewer.clock.currentTime; // Get the current time
-     const currentPosition = position.getValue(currentTime, new Cartesian3());
-     const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
-     position._value = newPosition;
+    const movement = Cartesian3.multiplyByScalar(forwardVector, speed, new Cartesian3());
 
-     entity.position = position;
-     console.log(position)
-});
+    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
+    const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
+    position._value = newPosition;
 
-
-/*
-document.addEventListener('keydown', function (event) {
-    const step = 1;
-    switch(event.keyCode)
-    {
-        case 37: // left arrow
-            console.log("LEFT");
-            position = Matrix4.multiplyByTranslation(
-                position,
-                new Cartesian3(-step, 0, 0),
-                new Matrix4()
-            );
-            break;
-        case 38: // up arrow
-            console.log("UP");
-            // position = Matrix4.multiplyByTranslation(
-            //     position,
-            //     new Cartesian3(0, 0, -step),
-            //     new Matrix4()
-            // );
-
-            position = new Cartesian3(position._value.x, position._value.y, position._value.z);
-
-            break;
-        case 39: // right arrow
-            console.log("RIGHT");
-            position = Matrix4.multiplyByTranslation(
-                position,
-                new Cartesian3(step, 0, 0),
-                new Matrix4()
-            );
-            break;
-        case 40: // down arrow
-            console.log("DOWN");
-            position = Matrix4.multiplyByTranslation(
-                position,
-                new Cartesian3(0, 0, step),
-                new Matrix4()
-            );
-            break;
-    }
     entity.position = position;
-    console.log(position)
+    console.log(position);
 });
-*/
 
+
+viewer.clock.onTick.addEventListener(function (clock) {
+    const acceleration = 0.01; // Speed increment value
+
+    const orientation = entity.orientation.getValue(clock.currentTime, new HeadingPitchRoll());
+    const forwardVector = new Cartesian3();
+    const quaternion = Transforms.headingPitchRollQuaternion(position.getValue(clock.currentTime, new Cartesian3()), orientation);
+    Matrix3.multiplyByVector(Matrix3.fromQuaternion(quaternion), Cartesian3.UNIT_X, forwardVector);
+    Cartesian3.normalize(forwardVector, forwardVector);
+
+    const movement = Cartesian3.multiplyByScalar(forwardVector, speed, new Cartesian3());
+
+    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
+    const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
+    position._value = newPosition;
+
+    entity.position = position;
+    console.log(position);
+});
+
+document.addEventListener('keydown', function (event) {
+    const acceleration = 0.01; // Speed increment value
+
+    switch (event.keyCode) {
+        case 38: // up arrow
+            speed += acceleration;
+            break;
+        case 40: // down arrow
+            speed -= acceleration;
+            // Limit the speed to a minimum of 0.01
+            speed = (speed > 0.01) ? speed : 0.01;
+            break;
+        case 37: // left arrow
+            const rotationMatrix = Matrix3.fromRotationZ(rotationSpeed);
+            const rotationQuaternion = Quaternion.fromRotationMatrix(rotationMatrix);
+            const modelMatrix = entity.model.modelMatrix;
+            const newModelMatrix = Matrix4.multiply(
+                Matrix4.fromRotationTranslation(
+                    rotationQuaternion,
+                    Cartesian3.ZERO,
+                    new Matrix4()
+                ),
+                modelMatrix,
+                new Matrix4()
+            );
+            entity.model.modelMatrix = newModelMatrix;
+            break;
+        case 39: // right arrow
+            const negativeRotationMatrix = Matrix3.fromRotationZ(-rotationSpeed);
+            const negativeRotationQuaternion = Quaternion.fromRotationMatrix(negativeRotationMatrix);
+            const modelMatrix2 = entity.model.modelMatrix;
+            const newModelMatrix2 = Matrix4.multiply(
+                Matrix4.fromRotationTranslation(
+                    negativeRotationQuaternion,
+                    Cartesian3.ZERO,
+                    new Matrix4()
+                ),
+                modelMatrix2,
+                new Matrix4()
+            );
+            entity.model.modelMatrix = newModelMatrix2;
+            break;
+    }
+});
