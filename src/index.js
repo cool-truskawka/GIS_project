@@ -45,7 +45,6 @@ const viewer = new Viewer('cesiumContainer', {
 viewer.scene.primitives.add(createOsmBuildings());
 
 // set the initial camera
-//this does nothing lol
 viewer.scene.camera.setView({
     destination: Cartesian3.fromDegrees(-74.019, 40.6912, 1000),
     orientation: {
@@ -55,16 +54,12 @@ viewer.scene.camera.setView({
 });
 
 // add model
-function createModel(url) {
+function createModel(url, pos, scale) {
     viewer.entities.removeAll();
 
-    const position = Cartesian3.fromDegrees(
-        -74.019,
-        40.6912,
-        1000
-    );
+    const position = pos;
 
-    const heading = 0;
+    const heading = Math.toRadians(0);
     const pitch = 0;
     const roll = 0;
     const hpr = new HeadingPitchRoll(heading, pitch, roll);
@@ -72,11 +67,12 @@ function createModel(url) {
 
     // plane
     const entity = viewer.entities.add({
-        name: "Plane",
+        name: "Model",
         position: position,
         orientation: orientation,
         model: {
             uri: url,
+            scale: scale,
             minimumPixelSize: 128,
             maximumScale: 20000,
         },
@@ -85,10 +81,43 @@ function createModel(url) {
     return entity;
 }
 
-let entity = createModel("http://localhost:3000/images/Cesium_Air.glb");
+// initial model is airplane
+const pos = Cartesian3.fromDegrees(
+    -74.019,
+    40.6912,
+    1000.0
+);
+let entity = createModel("http://localhost:3000/images/Cesium_Air.glb", pos);
 let position = entity.position;
 
+console.log(position)
 
+// select different model
+const modelSelect = document.getElementById("modelSelect");
+modelSelect.addEventListener("change", function () {
+    const selectedValue = modelSelect.value;
+    let position;
+    switch (selectedValue) {
+        case "aircraft":
+            position = entity.position.getValue(viewer.clock.currentTime, new Cartesian3())
+            entity = createModel("http://localhost:3000/images/Cesium_Air.glb", position, 1);
+            break;
+        case "passenger_plane":
+            position = entity.position.getValue(viewer.clock.currentTime, new Cartesian3())
+            entity = createModel("http://localhost:3000/images/Airplane.glb", position, 1);
+            break;
+        case "ww1":
+            position = entity.position.getValue(viewer.clock.currentTime, new Cartesian3())
+            entity = createModel("http://localhost:3000/images/ww1.glb", position, 1);
+            break;
+        case "falcon":
+            position = entity.position.getValue(viewer.clock.currentTime, new Cartesian3())
+            entity = createModel("http://localhost:3000/images/falcon.glb", position, 0.1);
+            break;
+    }
+});
+
+position = entity.position;
 
 let speed = 0.1; // Initial speed value
 let rotationSpeed = 0.2; // Rotation speed value
