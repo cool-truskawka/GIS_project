@@ -9,12 +9,21 @@ import {
     Transforms,
     Matrix3,
     Matrix4,
-    Model, 
+    Model,
     HeadingPitchRoll,
-    Quaternion 
+    Quaternion,
+    Entity,
+    SampledPositionProperty,
+    JulianDate,
+    Cartographic,
+    ConstantPositionProperty,
+    Label,
+    HorizontalOrigin, VerticalOrigin, Cartesian2, DistanceDisplayCondition, Cartesian4 as pinBuilder, EllipsoidGeodesic
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../src/css/main.css"
+import {Color} from "three";
+import {func} from "three/nodes";
 
 const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MmNhZjFkMi1hZjljLTQ5ZTEtOGIxZi1iMTc2MGI0YTcwYzgiLCJpZCI6MTM5ODcxLCJpYXQiOjE2ODQ0ODE5NTB9.mnZxaWR_9ighSvgIKlUs63rrCmPChtDo80vf7xuUuYg';
 Ion.defaultAccessToken = key;
@@ -53,10 +62,111 @@ viewer.scene.camera.setView({
     },
 });
 
+const goalPosition = Cartesian3.fromDegrees(-73.019, 41.6912, 1000);
+
+// add point
+function createPoint() {
+    const pin = viewer.entities.add({
+        position: goalPosition,
+        billboard: {
+            image: "http://localhost:3000/images/pin.png",
+            scale: 0.1,
+            verticalOrigin: VerticalOrigin.BOTTOM
+        }
+    });
+}
+
+// add label
+const statLabel = document.getElementById("statLabel");
+function updateStats(position, speed) {
+    // Your code to calculate or retrieve statistics goes here
+    const position1 = goalPosition;
+    const position2 = position._value;
+
+    const distance = Cartesian3.distance(position1, position2) / 1000;
+    const cartographic = Cartographic.fromCartesian(goalPosition);
+
+    const statistics = 'Destination: ' + Math.toDegrees(cartographic.longitude) + ' ' + Math.toDegrees(cartographic.latitude) + '\nDistance in km: ' + distance +
+    '\nSpeed: ' + speed;
+
+    statLabel.innerText = statistics;
+}
+
+var pathLine;
+
+// add line
+function createLine(pos) {
+    const cartographic = Cartographic.fromCartesian(pos._value);
+    const longitude = Math.toDegrees(cartographic.longitude);
+    const latitude = Math.toDegrees(cartographic.latitude);
+    const height = cartographic.height;
+
+    const cartographic2 = Cartographic.fromCartesian(goalPosition);
+    const longitude2 = Math.toDegrees(cartographic2.longitude);
+    const latitude2 = Math.toDegrees(cartographic2.latitude);
+    const line = viewer.entities.add({
+        name: "line",
+        polyline: {
+            positions: Cartesian3.fromDegreesArray([longitude, latitude, longitude2, latitude2]),
+            width: 10,
+            clampToGround: true
+        },
+    });
+   // const time = JulianDate.now();
+   // const position = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
+   // line.polyline.positions.addSample(time, position);
+    pathLine = line;
+    return line;
+}
+
+// function getEntityByName(name) {
+//     const entities = viewer.entities.values;
+//     for (let i = 0; i < entities.length; i++) {
+//         if (entities[i].name === name) {
+//             return entities[i];
+//         }
+//     }
+//     return undefined;
+// }
+//
+// function updateLine(pos) {
+//    // const line = getEntityByName("line");
+//     const line = pathLine;
+//     const cartographic = Cartographic.fromCartesian(pos._value);
+//     const longitude = Math.toDegrees(cartographic.longitude);
+//     const latitude = Math.toDegrees(cartographic.latitude);
+//     const height = cartographic.height;
+//
+//     const p = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
+//
+//     if (line) {
+//        // console.log(line.polyline.positions);
+//         //line.polyline.positions = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
+//         //line.polyline.positions
+//         const positionsProperty = line.polyline.positions;
+//
+//         // Clear the existing samples
+//         //positionsProperty.removeSamples(JulianDate.now());
+//
+//         // Add the new sample at the current time
+//         const time = JulianDate.now();
+//         const position = Cartesian3.fromDegrees(longitude, latitude);
+//
+//
+//         const constantPosition = new ConstantPositionProperty(Cartesian3.fromDegrees(longitude, latitude, height));
+//
+//         line.polyline.positions = constantPosition;
+//         // positionsProperty.addSample(time, position);
+//        // console.log(line.polyline.positions);
+//         // Perform any necessary updates to the redLine entity here
+//     } else {
+//         console.log("Red line entity not found.");
+//     }
+// }
+
 // add model
 function createModel(url, pos, scale) {
     viewer.entities.removeAll();
-
     const position = pos;
 
     const heading = Math.toRadians(0);
@@ -78,6 +188,9 @@ function createModel(url, pos, scale) {
         },
     });
     viewer.trackedEntity = entity;
+    createLine(entity.position);
+    //createLabel("XD", -10, -10);
+    createPoint();
     return entity;
 }
 
@@ -91,6 +204,15 @@ let entity = createModel("http://localhost:3000/images/Cesium_Air.glb", pos);
 let position = entity.position;
 
 console.log(position)
+const cartographic = Cartographic.fromCartesian(position._value);
+const longitude = Math.toDegrees(cartographic.longitude);
+const latitude = Math.toDegrees(cartographic.latitude);
+const height = cartographic.height;
+
+console.log("Longitude:", longitude);
+console.log("Latitude:", latitude);
+console.log("Height:", height);
+
 
 // select different model
 const modelSelect = document.getElementById("modelSelect");
@@ -121,10 +243,11 @@ modelSelect.addEventListener("change", function () {
     }
 });
 
+
 position = entity.position;
 
 let speed = 0.1; // Initial speed value
-let headingRotationSpeed = 0.02/60; // Rotation speed value\
+let headingRotationSpeed = 0.02 / 60; // Rotation speed value\
 let pitchRotationSpeed = 0.2; // Rotation speed value
 let rollRotationSpeed = 0.2; // Rotation speed value
 let acceleration = 0.01; // Speed increment value
@@ -174,7 +297,7 @@ switch(entity.name){//change flight control params based on chosen model
 viewer.clock.onTick.addEventListener(function (clock) {
     const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
     const orientation = entity.orientation.getValue(viewer.clock.currentTime, new HeadingPitchRoll());
-    if(rollOffset < 0){            
+    if(rollOffset < 0){
         headingOffset -= headingRotationSpeed * (-rollOffset);
     }
     if(rollOffset > 0){
@@ -196,6 +319,8 @@ viewer.clock.onTick.addEventListener(function (clock) {
     position._value = newPosition;
 
     entity.position = position;
+    updateStats(position, speed);
+
 });
 
 document.addEventListener('keydown', function (event) {
@@ -219,7 +344,7 @@ document.addEventListener('keydown', function (event) {
             pitchOffset = pitch;
             var hpr = new HeadingPitchRoll(heading, pitch, roll);
             entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
-            break;  
+            break;
         case 37: // left arrow
             var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
             var heading = headingOffset;
