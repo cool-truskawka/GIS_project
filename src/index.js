@@ -8,17 +8,10 @@ import {
     GoogleMaps,
     Transforms,
     Matrix3,
-    Matrix4,
-    Model,
     HeadingPitchRoll,
-    Quaternion,
-    Entity,
-    SampledPositionProperty,
-    JulianDate,
     Cartographic,
-    ConstantPositionProperty,
-    Label,
-    HorizontalOrigin, VerticalOrigin, Cartesian2, DistanceDisplayCondition, Cartesian4 as pinBuilder, EllipsoidGeodesic
+    VerticalOrigin,
+    CallbackProperty
 } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../src/css/main.css"
@@ -31,7 +24,7 @@ const apiKey = 'AIzaSyDey2NY3Aq7IEjgeE4bjh0WDQRPZA3OcGA';
 GoogleMaps.defaultApiKey = apiKey;
 
 
-// create view
+// Create view
 const viewer = new Viewer('cesiumContainer', {
    imageryProvider: false,
   terrainProvider: createWorldTerrain({
@@ -44,16 +37,14 @@ const viewer = new Viewer('cesiumContainer', {
   })
 });
 
-// photorealistic buildings and terrain - not sure if it looks nice
-// const tileset = viewer.scene.primitives.add(new Cesium3DTileset({
-//    url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=" + apiKey,
-//    showCreditsOnScreen: false,
-// }));
-
-// Add Cesium OSM Buildings, a global 3D buildings layer.
+/*
+    Add Cesium OSM Buildings, a global 3D buildings layer
+*/
 viewer.scene.primitives.add(createOsmBuildings());
 
-// set the initial camera
+/*
+    Set the initial camera
+*/
 viewer.scene.camera.setView({
     destination: Cartesian3.fromDegrees(-74.019, 40.6912, 1000),
     orientation: {
@@ -62,11 +53,17 @@ viewer.scene.camera.setView({
     },
 });
 
+/*
+    Set goal position
+*/
 const goalPosition = Cartesian3.fromDegrees(-73.019, 41.6912, 1000);
 
-// add point
+/*
+    Add a point
+*/
 function createPoint() {
     const pin = viewer.entities.add({
+        id: "goal",
         position: goalPosition,
         billboard: {
             image: "http://localhost:3000/images/pin.png",
@@ -74,16 +71,21 @@ function createPoint() {
             verticalOrigin: VerticalOrigin.BOTTOM
         }
     });
+    return pin;
 }
 
-// add label
+/*
+    Add label for statistics
+*/
 const statLabel = document.getElementById("statLabel");
 function updateStats(position, speed) {
-    // Your code to calculate or retrieve statistics goes here
+
     const position1 = goalPosition;
     const position2 = position._value;
 
+    // Calculate distance between model and destination
     const distance = Cartesian3.distance(position1, position2) / 1000;
+    // Retrieve information about catrographic propreties of destination
     const cartographic = Cartographic.fromCartesian(goalPosition);
 
     const statistics = 'Destination: ' + Math.toDegrees(cartographic.longitude) + ' ' + Math.toDegrees(cartographic.latitude) + '\nDistance in km: ' + distance +
@@ -92,93 +94,42 @@ function updateStats(position, speed) {
     statLabel.innerText = statistics;
 }
 
-var pathLine;
-
-// add line
-function createLine(pos) {
-    const cartographic = Cartographic.fromCartesian(pos._value);
-    const longitude = Math.toDegrees(cartographic.longitude);
-    const latitude = Math.toDegrees(cartographic.latitude);
-    const height = cartographic.height;
-
-    const cartographic2 = Cartographic.fromCartesian(goalPosition);
-    const longitude2 = Math.toDegrees(cartographic2.longitude);
-    const latitude2 = Math.toDegrees(cartographic2.latitude);
+/*
+    Add line
+*/
+function createLine() {
     const line = viewer.entities.add({
         name: "line",
         polyline: {
-            positions: Cartesian3.fromDegreesArray([longitude, latitude, longitude2, latitude2]),
-            width: 10,
-            clampToGround: true
-        },
+            // Make a line follow already existing properties
+            positions: new CallbackProperty(() => {
+                // Retrieve the current positions of the model
+                const planePosition = viewer.entities.getById('plane').position.getValue(viewer.clock.currentTime);
+                // Retrieve the current positions of the goal
+                const goalPosition = viewer.entities.getById('goal').position.getValue(viewer.clock.currentTime);
+    
+                // Return an array containing the plane's position and the goal's position
+                return [planePosition, goalPosition];
+            }, false),
+            // Set line's width
+            width: 10
+        }
     });
-   // const time = JulianDate.now();
-   // const position = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
-   // line.polyline.positions.addSample(time, position);
-    pathLine = line;
     return line;
 }
 
-// function getEntityByName(name) {
-//     const entities = viewer.entities.values;
-//     for (let i = 0; i < entities.length; i++) {
-//         if (entities[i].name === name) {
-//             return entities[i];
-//         }
-//     }
-//     return undefined;
-// }
-//
-// function updateLine(pos) {
-//    // const line = getEntityByName("line");
-//     const line = pathLine;
-//     const cartographic = Cartographic.fromCartesian(pos._value);
-//     const longitude = Math.toDegrees(cartographic.longitude);
-//     const latitude = Math.toDegrees(cartographic.latitude);
-//     const height = cartographic.height;
-//
-//     const p = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
-//
-//     if (line) {
-//        // console.log(line.polyline.positions);
-//         //line.polyline.positions = Cartesian3.fromDegreesArray([longitude, latitude, 125, 35]);
-//         //line.polyline.positions
-//         const positionsProperty = line.polyline.positions;
-//
-//         // Clear the existing samples
-//         //positionsProperty.removeSamples(JulianDate.now());
-//
-//         // Add the new sample at the current time
-//         const time = JulianDate.now();
-//         const position = Cartesian3.fromDegrees(longitude, latitude);
-//
-//
-//         const constantPosition = new ConstantPositionProperty(Cartesian3.fromDegrees(longitude, latitude, height));
-//
-//         line.polyline.positions = constantPosition;
-//         // positionsProperty.addSample(time, position);
-//        // console.log(line.polyline.positions);
-//         // Perform any necessary updates to the redLine entity here
-//     } else {
-//         console.log("Red line entity not found.");
-//     }
-// }
-
-// add model
+/*
+    Add model
+*/
 function createModel(url, pos, scale) {
     viewer.entities.removeAll();
-    const position = pos;
-
-    const heading = Math.toRadians(0);
-    const pitch = 0;
-    const roll = 0;
-    const hpr = new HeadingPitchRoll(heading, pitch, roll);
-    const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
-
-    // plane
+    const hpr = new HeadingPitchRoll(0, 0, 0);
+    const orientation = Transforms.headingPitchRollQuaternion(pos, hpr);
+    // Plane entity
     const entity = viewer.entities.add({
+        id: "plane",
         name: "Model",
-        position: position,
+        position: pos,
         orientation: orientation,
         model: {
             uri: url,
@@ -187,34 +138,32 @@ function createModel(url, pos, scale) {
             maximumScale: 20000,
         },
     });
+    // Make the model a tracked object
     viewer.trackedEntity = entity;
-    createLine(entity.position);
-    //createLabel("XD", -10, -10);
+    // Create navigation path
+    createLine();
+    // Create a goal pin
     createPoint();
     return entity;
 }
 
-// initial model is airplane
+/*
+    Initial position for a model
+*/
 const pos = Cartesian3.fromDegrees(
     -74.019,
     40.6912,
     1000.0
 );
+
+/*
+    Create a model, point and line entities
+*/
 let entity = createModel("http://localhost:3000/images/Cesium_Air.glb", pos);
-let position = entity.position;
 
-console.log(position)
-const cartographic = Cartographic.fromCartesian(position._value);
-const longitude = Math.toDegrees(cartographic.longitude);
-const latitude = Math.toDegrees(cartographic.latitude);
-const height = cartographic.height;
-
-console.log("Longitude:", longitude);
-console.log("Latitude:", latitude);
-console.log("Height:", height);
-
-
-// select different model
+/*
+    Select different model
+*/
 const modelSelect = document.getElementById("modelSelect");
 modelSelect.addEventListener("change", function () {
     const selectedValue = modelSelect.value;
@@ -243,9 +192,6 @@ modelSelect.addEventListener("change", function () {
     }
 });
 
-
-position = entity.position;
-
 let speed = 0.1; // Initial speed value
 let headingRotationSpeed = 0.02 / 60; // Rotation speed value\
 let pitchRotationSpeed = 0.2; // Rotation speed value
@@ -256,7 +202,10 @@ let pitchOffset = 0;
 let rollOffset = 0;
 let minimalSpeed = 0.1
 
-switch(entity.name){//change flight control params based on chosen model
+/*
+    Change flight control parameters based on chosen model of a plane
+*/
+switch(entity.name){
     case "falcon":
         speed = 0.69; // Initial speed value
         headingRotationSpeed = 0.2/60; // Rotation speed value\
@@ -294,81 +243,107 @@ switch(entity.name){//change flight control params based on chosen model
         break;
 }
 
+/*
+    Per frame mechanism for updating plane's position according to its orientation 
+    and update statistics
+*/
 viewer.clock.onTick.addEventListener(function (clock) {
-    const currentPosition = position.getValue(clock.currentTime, new Cartesian3());
+    const currentPosition = entity.position.getValue(clock.currentTime, new Cartesian3());
     const orientation = entity.orientation.getValue(viewer.clock.currentTime, new HeadingPitchRoll());
+    // Automatiacally turn left if model is lening left
     if(rollOffset < 0){
-        headingOffset -= headingRotationSpeed * (-rollOffset);
+        // Turning angle depends on strenght of the lean and movement speed
+        headingOffset -= headingRotationSpeed * (-rollOffset) * speed;
     }
+    // Automatially turn right if model is leaning right
     if(rollOffset > 0){
-        headingOffset += headingRotationSpeed * (rollOffset);
+        // Turning angle depends on strenght of the lean and movement speed
+        headingOffset += headingRotationSpeed * (rollOffset) * speed;
     }
-    var hpr = new HeadingPitchRoll(headingOffset, pitchOffset, rollOffset);
+    // Update visual orientation of the model
+    var hpr = new HeadingPitchRoll(headingOffset, pitchOffset, rollOffset);    
     entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
     orientation.roll = rollOffset;
     orientation.heading = headingOffset;
     orientation.pitch = pitchOffset;
     const forwardVector = new Cartesian3();
-    const quaternion = Transforms.headingPitchRollQuaternion(position.getValue(clock.currentTime, new Cartesian3()), orientation);
+    const quaternion = Transforms.headingPitchRollQuaternion(entity.position.getValue(clock.currentTime, new Cartesian3()), orientation);
     Matrix3.multiplyByVector(Matrix3.fromQuaternion(quaternion), Cartesian3.UNIT_X, forwardVector);
     Cartesian3.normalize(forwardVector, forwardVector);
-
     const movement = Cartesian3.multiplyByScalar(forwardVector, speed, new Cartesian3());
-
+    // Update model's position according to current movement speed
     const newPosition = Cartesian3.add(currentPosition, movement, new Cartesian3());
-    position._value = newPosition;
-
-    entity.position = position;
-    updateStats(position, speed);
-
+    entity.position._value = newPosition;
+    // Update flight statistics
+    updateStats(entity.position, speed);
 });
 
+/*
+    A control mechanism for model's control from keyboard
+
+    Left arrow -> roll to the left
+    Right arrow -> roll to the right
+    Up arrow -> pitch down
+    Down arrow -> pitch up
+    Spacebar -> speed up
+    Control -> slow down
+*/
 document.addEventListener('keydown', function (event) {
     switch (event.keyCode) {
-        case 38: // up arrow
+        case 38: // Up arrow
             var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
             var heading = headingOffset;
             var pitch = pitchOffset;
             var roll = rollOffset;
+            // Udpate model's pitch when an arrow up is pressed
             pitch -= Math.toRadians(pitchRotationSpeed);
             pitchOffset = pitch;
             var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            // Change model's orientation according to change in pitch
             entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
-        case 40: // down arrow
+        case 40: // Down arrow
             var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
             var heading = headingOffset;
             var pitch = pitchOffset;
             var roll = rollOffset;
+            // Udpate model's pitch when an arrow down is pressed
             pitch += Math.toRadians(pitchRotationSpeed);
             pitchOffset = pitch;
             var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            // Change model's orientation according to change in pitch
             entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
-        case 37: // left arrow
+        case 37: // Left arrow
             var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
             var heading = headingOffset;
             var pitch = pitchOffset;
             var roll = rollOffset;
+            // Udpate model's roll when an arrow left is pressed
             rollOffset -= Math.toRadians(rollRotationSpeed);
             roll = rollOffset;
             var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            // Change model's orientation according to change in roll
             entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
-        case 39: // right arrow
+        case 39: // Right arrow
             var currentPosition = entity.position.getValue(viewer.clock.currentTime, new Cartesian3());
             var heading = headingOffset;
             var pitch = pitchOffset;
             var roll = rollOffset;
+            // Udpate model's roll when an arrow left is pressed
             rollOffset += Math.toRadians(rollRotationSpeed);
             roll = rollOffset;
             var hpr = new HeadingPitchRoll(heading, pitch, roll);
+            // Change model's orientation according to change in roll
             entity.orientation = Transforms.headingPitchRollQuaternion(currentPosition, hpr);
             break;
-        case 32: // space bar
+        case 32: // Space bar
+            // Make model move faster when spacebar is pressed
             speed += acceleration;
             break;
-        case 17: // ctrl
+        case 17: // Ctrl
+            // Make model move slower when control is pressed
             speed -= acceleration;
             // Limit the speed to a minimum of 0.01
             speed = (speed > minimalSpeed) ? speed : minimalSpeed;
